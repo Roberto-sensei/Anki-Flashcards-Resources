@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>Ćwiczenie Hanzi</title>
+  <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5.0/dist/hanzi-writer.min.js"></script>
+  <style>
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      padding: 40px;
+      background-color: #f9f9f9;
+      color: #333;
+      transform-origin: top left;
+      transition: transform 0.2s ease;
+    }
+
+    #inputArea {
+      margin-bottom: 30px;
+    }
+
+    #hanziInput {
+      font-size: 20px;
+      width: 100%;
+      max-width: 600px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    button {
+      font-size: 18px;
+      padding: 10px 18px;
+      margin: 4px 4px 4px 0;
+      border: none;
+      background-color: #4CAF50;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    #hanziContainer {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .hanzi-row {
+      display: flex;
+      gap: 20px;
+    }
+
+    .hanzi-box {
+      width: 250px;
+      height: 250px;
+      border: 2px solid #666;
+      background-color: white;
+      box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.1);
+      position: relative;
+    }
+
+    .grid-lines {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 250px;
+      height: 250px;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .hanzi-svg {
+      z-index: 2;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+  </style>
+</head>
+<body>
+
+<div id="inputArea">
+  <textarea id="hanziInput" rows="2" placeholder="Wklej tutaj chińskie znaki..."></textarea><br>
+  <button onclick="generateHanzi()">Generuj quizy</button>
+  <button onclick="zoomIn()">Powiększ</button>
+  <button onclick="zoomOut()">Pomniejsz</button>
+  <button onclick="resetQuiz()">Reset</button>
+</div>
+
+<div id="hanziContainer"></div>
+
+<script>
+let scale = 1.0;
+let writers = [];
+
+function zoomIn() {
+  scale += 0.1;
+  document.body.style.transform = 'scale(' + scale + ')';
+}
+
+function zoomOut() {
+  scale = Math.max(0.5, scale - 0.1);
+  document.body.style.transform = 'scale(' + scale + ')';
+}
+
+function generateGridSVG() {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('class', 'grid-lines');
+  svg.setAttribute('width', '250');
+  svg.setAttribute('height', '250');
+
+  const step = 250 / 4;
+
+  for (let i = 1; i < 4; i++) {
+    const hLine = document.createElementNS(svgNS, 'line');
+    hLine.setAttribute('x1', '0');
+    hLine.setAttribute('y1', step * i);
+    hLine.setAttribute('x2', '250');
+    hLine.setAttribute('y2', step * i);
+    hLine.setAttribute('stroke', 'black');
+    hLine.setAttribute('stroke-width', '1'); // Zmieniono z '0.5' na '1'
+    svg.appendChild(hLine);
+
+    const vLine = document.createElementNS(svgNS, 'line');
+    vLine.setAttribute('x1', step * i);
+    vLine.setAttribute('y1', '0');
+    vLine.setAttribute('x2', step * i);
+    vLine.setAttribute('y2', '250');
+    vLine.setAttribute('stroke', 'black');
+    vLine.setAttribute('stroke-width', '1'); // Zmieniono z '0.5' na '1'
+    svg.appendChild(vLine);
+  }
+
+  return svg;
+}
+
+function generateHanzi() {
+  const container = document.getElementById('hanziContainer');
+  container.innerHTML = '';
+  writers = [];
+  const input = document.getElementById('hanziInput').value;
+  let rowDiv = null;
+  let countInRow = 0;
+  for (let i = 0, j = 0; i < input.length; i++) {
+    const char = input[i];
+    if (char.trim() === '') continue;
+    if (countInRow % 5 === 0) {
+      rowDiv = document.createElement('div');
+      rowDiv.className = 'hanzi-row';
+      container.appendChild(rowDiv);
+      countInRow = 0;
+    }
+
+    const box = document.createElement('div');
+    box.className = 'hanzi-box';
+    box.id = 'hanzi-' + j;
+
+    // Dodaj siatkę
+    const gridSVG = generateGridSVG();
+    box.appendChild(gridSVG);
+
+    rowDiv.appendChild(box);
+
+    const writer = HanziWriter.create(box.id, char, {
+      width: 250,
+      height: 250,
+      showCharacter: false,
+      showOutline: false,
+      showHintAfterMisses: 1,
+      highlightOnComplete: false,
+      padding: 2
+    });
+
+    writers.push(writer);
+    writer.quiz();
+
+    countInRow++;
+    j++;
+  }
+}
+
+function resetQuiz() {
+  for (let writer of writers) {
+    writer.quiz();
+  }
+}
+</script>
+
+</body>
+</html>
