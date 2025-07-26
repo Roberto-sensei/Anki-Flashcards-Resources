@@ -1,0 +1,99 @@
+
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>Ćwiczenie Hanzi</title>
+  <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5.0/dist/hanzi-writer.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background-color: white;
+      transform-origin: top left;
+      transition: transform 0.2s ease;
+    }
+    #inputArea {
+      margin-bottom: 20px;
+    }
+    #hanziInput {
+      font-size: 18px;
+    }
+    button {
+      font-size: 18px;
+      padding: 6px 12px;
+      margin: 4px;
+    }
+    #hanziContainer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .hanzi-box {
+      width: 140px;
+      height: 140px;
+      border: 1px solid black;
+    }
+  </style>
+</head>
+<body>
+
+<div id="inputArea">
+  <textarea id="hanziInput" rows="2" cols="40" placeholder="Wklej tutaj chińskie znaki..."></textarea><br>
+  <button onclick="generateHanzi()">Generuj quizy</button>
+  <button onclick="zoomIn()">Powiększ</button>
+  <button onclick="zoomOut()">Pomniejsz</button>
+  <button onclick="resetQuiz()">Reset</button>
+</div>
+
+<div id="hanziContainer"></div>
+
+<script>
+let scale = 1.0;
+let writers = [];
+
+function zoomIn() {
+  scale += 0.1;
+  document.body.style.transform = 'scale(' + scale + ')';
+}
+
+function zoomOut() {
+  scale = Math.max(0.5, scale - 0.1);
+  document.body.style.transform = 'scale(' + scale + ')';
+}
+
+function generateHanzi() {
+  const container = document.getElementById('hanziContainer');
+  container.innerHTML = '';
+  writers = [];
+  const input = document.getElementById('hanziInput').value;
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+    if (char.trim() === '') continue;
+    const box = document.createElement('div');
+    box.className = 'hanzi-box';
+    box.id = 'hanzi-' + i;
+    container.appendChild(box);
+    const writer = HanziWriter.create(box.id, char, {
+      width: 140,
+      height: 140,
+      showCharacter: false,
+      showOutline: false,
+      showHintAfterMisses: 1,
+      highlightOnComplete: false,
+      padding: 2
+    });
+    writer.quiz();
+    writers.push(writer);
+  }
+}
+
+function resetQuiz() {
+  for (let writer of writers) {
+    writer.quiz();
+  }
+}
+</script>
+
+</body>
+</html>
