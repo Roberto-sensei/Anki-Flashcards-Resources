@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Ćwiczenie Hanzi</title>
+  <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5.0/dist/hanzi-writer.min.js"></script>
+  <style>
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      padding: 20px;
+      background-color: #f9f9f9;
+      color: #333;
+      transform-origin: top left;
+      transition: transform 0.2s ease;
+    }
+
+    #appContainer {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    #inputArea, #controlsArea {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+    }
+
+    #inputArea summary {
+        font-size: 1.1em;
+        font-weight: 600;
+        cursor: pointer;
+        margin-bottom: 15px;
+    }
+
+    #hanziInput {
+      font-size: 18px;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+
+    .control-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+
+    .control-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .control-group label {
+        margin-bottom: 5px;
+        font-size: 14px;
+        color: #555;
+    }
+
+    .control-group input {
+        padding: 8px;
+        font-size: 16px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .button-group button {
+      font-size: 16px;
+      padding: 10px 18px;
+      margin: 5px 5px 5px 0;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .button-group button:hover {
+      background-color: #0056b3;
+    }
+    
+    .button-group button.secondary {
+        background-color: #6c757d;
+    }
+    .button-group button.secondary:hover {
+        background-color: #5a6268;
+    }
+
+
+    #hanziContainer {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .hanzi-row {
+      display: flex;
+      flex-wrap: wrap; /* Allows wrapping if needed */
+    }
+
+    .hanzi-box {
+      border: 2px solid #666;
+      background-color: white;
+      position: relative;
+    }
+
+    .grid-lines {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .hanzi-svg {
+      z-index: 2;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+  </style>
+</head>
+<body>
+
+<div id="appContainer">
+    <div id="inputArea">
+      <details open>
+        <summary>Wprowadź znaki Hanzi</summary>
+        <textarea id="hanziInput" rows="3" placeholder="Wklej tutaj chińskie znaki..."></textarea>
+      </details>
+    </div>
+
+    <div id="controlsArea">
+        <div class="control-grid">
+            <div class="control-group">
+                <label for="zoomInput">Powiększenie (%)</label>
+                <input type="number" id="zoomInput" value="100" oninput="updateZoom()">
+            </div>
+            <div class="control-group">
+                <label for="boxSizeInput">Rozmiar kwadratu (px)</label>
+                <input type="number" id="boxSizeInput" value="250">
+            </div>
+            <div class="control-group">
+                <label for="gridThicknessInput">Grubość siatki (px)</label>
+                <input type="number" id="gridThicknessInput" value="1" min="0">
+            </div>
+            <div class="control-group">
+                <label for="gapInput">Odstęp (px)</label>
+                <input type="number" id="gapInput" value="20" min="0">
+            </div>
+            <div class="control-group">
+                <label for="perRowInput">Liczba w rzędzie</label>
+                <input type="number" id="perRowInput" value="5" min="1">
+            </div>
+        </div>
+        <div class="button-group">
+            <button onclick="generateHanzi()">Generuj quizy</button>
+            <button onclick="resetQuiz()" class="secondary">Reset</button>
+            <button onclick="solveAll()" class="secondary">Rozwiąż</button>
+        </div>
+    </div>
+
+    <div id="hanziContainer"></div>
+</div>
+
+<script>
+let writers = [];
+
+// Funkcja do aktualizacji powiększenia strony
+function updateZoom() {
+  const zoomValue = document.getElementById('zoomInput').value;
+  const scale = Math.max(10, zoomValue) / 100; // Ograniczenie minimalnego zoomu do 10%
+  document.body.style.transform = `scale(${scale})`;
+}
+
+// Funkcja do generowania siatki 4x4 wewnątrz kwadratu
+function generateGridSVG(size, thickness) {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('class', 'grid-lines');
+  svg.setAttribute('width', size);
+  svg.setAttribute('height', size);
+
+  const step = size / 4;
+  const strokeWidth = Math.max(0, thickness); // Grubość nie może być ujemna
+
+  // Pęta do rysowania 3 linii poziomych i 3 pionowych
+  for (let i = 1; i < 4; i++) {
+    // Linia pozioma
+    const hLine = document.createElementNS(svgNS, 'line');
+    hLine.setAttribute('x1', '0');
+    hLine.setAttribute('y1', step * i);
+    hLine.setAttribute('x2', size);
+    hLine.setAttribute('y2', step * i);
+    hLine.setAttribute('stroke', 'black');
+    hLine.setAttribute('stroke-width', strokeWidth);
+    svg.appendChild(hLine);
+
+    // Linia pionowa
+    const vLine = document.createElementNS(svgNS, 'line');
+    vLine.setAttribute('x1', step * i);
+    vLine.setAttribute('y1', '0');
+    vLine.setAttribute('x2', step * i);
+    vLine.setAttribute('y2', size);
+    vLine.setAttribute('stroke', 'black');
+    vLine.setAttribute('stroke-width', strokeWidth);
+    svg.appendChild(vLine);
+  }
+
+  return svg;
+}
+
+
+// Główna funkcja generująca quizy, teraz z użyciem wartości z pól input
+function generateHanzi() {
+  // Pobieranie wartości z pól kontrolnych i walidacja
+  let boxSize = parseInt(document.getElementById('boxSizeInput').value, 10);
+  if (isNaN(boxSize) || boxSize <= 0) boxSize = 250;
+
+  let gapSize = parseInt(document.getElementById('gapInput').value, 10);
+  if (isNaN(gapSize)) gapSize = 20;
+
+  let itemsPerRow = parseInt(document.getElementById('perRowInput').value, 10);
+  if (isNaN(itemsPerRow) || itemsPerRow <= 0) itemsPerRow = 5;
+  
+  let gridThickness = parseInt(document.getElementById('gridThicknessInput').value, 10);
+  if (isNaN(gridThickness)) gridThickness = 1;
+
+  const container = document.getElementById('hanziContainer');
+  container.innerHTML = '';
+  writers = [];
+  const input = document.getElementById('hanziInput').value;
+  
+  let rowDiv = null;
+  let countInRow = 0;
+  let charIndex = 0;
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+    // Pomiń puste znaki (spacje, entery)
+    if (char.trim() === '') continue;
+
+    // Tworzenie nowego wiersza, jeśli jest potrzebny
+    if (countInRow % itemsPerRow === 0) {
+      rowDiv = document.createElement('div');
+      rowDiv.className = 'hanzi-row';
+      rowDiv.style.gap = `${gapSize}px`;
+      rowDiv.style.marginBottom = `${gapSize}px`;
+      container.appendChild(rowDiv);
+      countInRow = 0;
+    }
+
+    // Tworzenie kwadratu na znak
+    const box = document.createElement('div');
+    box.className = 'hanzi-box';
+    box.id = 'hanzi-' + charIndex;
+    box.style.width = `${boxSize}px`;
+    box.style.height = `${boxSize}px`;
+
+    // Dodawanie siatki do kwadratu
+    const gridSVG = generateGridSVG(boxSize, gridThickness);
+    box.appendChild(gridSVG);
+
+    rowDiv.appendChild(box);
+
+    // Inicjalizacja HanziWriter dla danego znaku
+    const writer = HanziWriter.create(box.id, char, {
+      width: boxSize,
+      height: boxSize,
+      showCharacter: false,
+      showOutline: false,
+      showHintAfterMisses: 1,
+      highlightOnComplete: false,
+      padding: 5
+    });
+
+    writers.push(writer);
+    writer.quiz();
+
+    countInRow++;
+    charIndex++;
+  }
+}
+
+// Funkcja resetująca wszystkie quizy
+function resetQuiz() {
+  for (let writer of writers) {
+    writer.quiz();
+  }
+}
+
+// Funkcja pokazująca rozwiązania wszystkich quizów
+function solveAll() {
+  for (let writer of writers) {
+    writer.showCharacter();
+  }
+}
+
+// Wywołaj funkcję zoomu przy starcie, aby ustawić domyślną wartość
+updateZoom();
+</script>
+
+</body>
+</html>
