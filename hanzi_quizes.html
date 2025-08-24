@@ -62,7 +62,7 @@
         color: #555;
     }
 
-    .control-group input {
+    .control-group input[type="number"] {
         padding: 8px;
         font-size: 16px;
         border: 1px solid #ddd;
@@ -94,15 +94,66 @@
         background-color: #5a6268;
     }
 
+    /* Style dla przełącznika */
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 28px;
+        margin-top: 5px;
+    }
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 28px;
+    }
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+    input:checked + .slider {
+        background-color: #007bff;
+    }
+    input:checked + .slider:before {
+        transform: translateX(22px);
+    }
 
     #hanziContainer {
       display: flex;
       flex-direction: column;
     }
+    
+    /* Style dla stałego układu */
+    #hanziContainer.fixed-layout {
+        overflow-x: auto;
+        padding-bottom: 15px;
+    }
+    #hanziContainer.fixed-layout .hanzi-row {
+        flex-wrap: nowrap;
+    }
+
 
     .hanzi-row {
       display: flex;
-      flex-wrap: wrap; /* Allows wrapping if needed */
+      flex-wrap: wrap; /* Domyślnie elastyczny */
     }
 
     .hanzi-box {
@@ -159,6 +210,13 @@
                 <label for="perRowInput">Liczba w rzędzie</label>
                 <input type="number" id="perRowInput" value="5" min="1">
             </div>
+            <div class="control-group">
+                <label>Układ: <span id="layoutLabel">Elastyczny</span></label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="layoutToggle" checked onchange="applyLayout()">
+                    <span class="slider"></span>
+                </label>
+            </div>
         </div>
         <div class="button-group">
             <button onclick="generateHanzi()">Generuj quizy</button>
@@ -176,8 +234,24 @@ let writers = [];
 // Funkcja do aktualizacji powiększenia strony
 function updateZoom() {
   const zoomValue = document.getElementById('zoomInput').value;
-  const scale = Math.max(10, zoomValue) / 100; // Ograniczenie minimalnego zoomu do 10%
+  const scale = Math.max(10, zoomValue) / 100;
   document.body.style.transform = `scale(${scale})`;
+}
+
+// Funkcja do zmiany trybu układu (elastyczny/stały)
+function applyLayout() {
+    const container = document.getElementById('hanziContainer');
+    const toggle = document.getElementById('layoutToggle');
+    const label = document.getElementById('layoutLabel');
+    const isFlexible = toggle.checked;
+
+    if (isFlexible) {
+        container.classList.remove('fixed-layout');
+        label.textContent = 'Elastyczny';
+    } else {
+        container.classList.add('fixed-layout');
+        label.textContent = 'Stały';
+    }
 }
 
 // Funkcja do generowania siatki 4x4 wewnątrz kwadratu
@@ -189,11 +263,9 @@ function generateGridSVG(size, thickness) {
   svg.setAttribute('height', size);
 
   const step = size / 4;
-  const strokeWidth = Math.max(0, thickness); // Grubość nie może być ujemna
+  const strokeWidth = Math.max(0, thickness);
 
-  // Pęta do rysowania 3 linii poziomych i 3 pionowych
   for (let i = 1; i < 4; i++) {
-    // Linia pozioma
     const hLine = document.createElementNS(svgNS, 'line');
     hLine.setAttribute('x1', '0');
     hLine.setAttribute('y1', step * i);
@@ -203,7 +275,6 @@ function generateGridSVG(size, thickness) {
     hLine.setAttribute('stroke-width', strokeWidth);
     svg.appendChild(hLine);
 
-    // Linia pionowa
     const vLine = document.createElementNS(svgNS, 'line');
     vLine.setAttribute('x1', step * i);
     vLine.setAttribute('y1', '0');
@@ -218,18 +289,12 @@ function generateGridSVG(size, thickness) {
 }
 
 
-// Główna funkcja generująca quizy, teraz z użyciem wartości z pól input
+// Główna funkcja generująca quizy
 function generateHanzi() {
-  // Pobieranie wartości z pól kontrolnych i walidacja
-  let boxSize = parseInt(document.getElementById('boxSizeInput').value, 10);
-  if (isNaN(boxSize) || boxSize <= 0) boxSize = 250;
-
+  let boxSize = parseInt(document.getElementById('boxSizeInput').value, 10) || 250;
   let gapSize = parseInt(document.getElementById('gapInput').value, 10);
   if (isNaN(gapSize)) gapSize = 20;
-
-  let itemsPerRow = parseInt(document.getElementById('perRowInput').value, 10);
-  if (isNaN(itemsPerRow) || itemsPerRow <= 0) itemsPerRow = 5;
-  
+  let itemsPerRow = parseInt(document.getElementById('perRowInput').value, 10) || 5;
   let gridThickness = parseInt(document.getElementById('gridThicknessInput').value, 10);
   if (isNaN(gridThickness)) gridThickness = 1;
 
@@ -238,16 +303,17 @@ function generateHanzi() {
   writers = [];
   const input = document.getElementById('hanziInput').value;
   
+  // Zastosuj wybrany tryb układu
+  applyLayout();
+  
   let rowDiv = null;
   let countInRow = 0;
   let charIndex = 0;
 
   for (let i = 0; i < input.length; i++) {
     const char = input[i];
-    // Pomiń puste znaki (spacje, entery)
     if (char.trim() === '') continue;
 
-    // Tworzenie nowego wiersza, jeśli jest potrzebny
     if (countInRow % itemsPerRow === 0) {
       rowDiv = document.createElement('div');
       rowDiv.className = 'hanzi-row';
@@ -257,20 +323,17 @@ function generateHanzi() {
       countInRow = 0;
     }
 
-    // Tworzenie kwadratu na znak
     const box = document.createElement('div');
     box.className = 'hanzi-box';
     box.id = 'hanzi-' + charIndex;
     box.style.width = `${boxSize}px`;
     box.style.height = `${boxSize}px`;
 
-    // Dodawanie siatki do kwadratu
     const gridSVG = generateGridSVG(boxSize, gridThickness);
     box.appendChild(gridSVG);
 
     rowDiv.appendChild(box);
 
-    // Inicjalizacja HanziWriter dla danego znaku
     const writer = HanziWriter.create(box.id, char, {
       width: boxSize,
       height: boxSize,
@@ -289,22 +352,21 @@ function generateHanzi() {
   }
 }
 
-// Funkcja resetująca wszystkie quizy
 function resetQuiz() {
   for (let writer of writers) {
     writer.quiz();
   }
 }
 
-// Funkcja pokazująca rozwiązania wszystkich quizów
 function solveAll() {
   for (let writer of writers) {
     writer.showCharacter();
   }
 }
 
-// Wywołaj funkcję zoomu przy starcie, aby ustawić domyślną wartość
+// Inicjalizacja przy starcie
 updateZoom();
+applyLayout();
 </script>
 
 </body>
