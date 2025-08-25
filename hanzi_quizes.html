@@ -344,11 +344,12 @@ function generateHanzi() {
     const writer = HanziWriter.create(box.id, char, {
       width: boxSize,
       height: boxSize,
+      padding: 5,
       showCharacter: false,
       showOutline: false,
+      strokeWidth: 4.5, // Zwiększona grubość linii
       showHintAfterMisses: 1,
-      highlightOnComplete: false,
-      padding: 5
+      highlightOnComplete: true,
     });
 
     writers.push(writer);
@@ -371,8 +372,12 @@ function solveAll() {
   }
 }
 
-// NOWA FUNKCJA - Eksport do HTML
+// ZAKTUALIZOWANA FUNKCJA - Eksport do HTML
 function exportToHtml() {
+    if (writers.length === 0) {
+        alert("Najpierw wygeneruj quiz!");
+        return;
+    }
     // 1. Zbierz wszystkie aktualne ustawienia
     const hanziChars = document.getElementById('hanziInput').value;
     const boxSize = parseInt(document.getElementById('boxSizeInput').value, 10) || 250;
@@ -391,7 +396,13 @@ function exportToHtml() {
   <title>Quiz Hanzi</title>
   <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5.0/dist/hanzi-writer.min.js"><\/script>
   <style>
-    body { font-family: sans-serif; padding: 20px; background-color: #f9f9f9; }
+    body { font-family: sans-serif; padding: 20px; background-color: #f9f9f9; display: flex; flex-direction: column; align-items: center; }
+    .button-container { margin-bottom: 20px; }
+    .button-container button { font-size: 16px; padding: 10px 18px; margin: 0 5px; border: none; color: white; border-radius: 5px; cursor: pointer; transition: background-color 0.2s; }
+    .button-container button.reset { background-color: #6c757d; }
+    .button-container button.reset:hover { background-color: #5a6268; }
+    .button-container button.solve { background-color: #007bff; }
+    .button-container button.solve:hover { background-color: #0056b3; }
     #hanziContainer { display: flex; flex-direction: column; }
     #hanziContainer.fixed-layout { overflow-x: auto; padding-bottom: 15px; }
     #hanziContainer.fixed-layout .hanzi-row { flex-wrap: nowrap; }
@@ -401,8 +412,22 @@ function exportToHtml() {
   </style>
 </head>
 <body>
+  <div class="button-container">
+    <button onclick="resetQuiz()" class="reset">Reset</button>
+    <button onclick="solveAll()" class="solve">Rozwiąż</button>
+  </div>
   <div id="hanziContainer" class="${layoutClass}"></div>
   <script>
+    let writers = [];
+
+    // Funkcje do obsługi przycisków
+    function resetQuiz() {
+      for (let writer of writers) { writer.quiz(); }
+    }
+    function solveAll() {
+      for (let writer of writers) { writer.showCharacter(); }
+    }
+
     // Funkcja do generowania siatki (skopiowana)
     function generateGridSVG(size, thickness) {
       const svgNS = 'http://www.w3.org/2000/svg';
@@ -469,12 +494,14 @@ function exportToHtml() {
         const writer = HanziWriter.create(box.id, char, {
           width: config.boxSize,
           height: config.boxSize,
+          padding: 5,
           showCharacter: false,
           showOutline: false,
+          strokeWidth: 4.5, // Zwiększona grubość linii
           showHintAfterMisses: 1,
-          highlightOnComplete: false,
-          padding: 5
+          highlightOnComplete: true,
         });
+        writers.push(writer); // Dodaj instancję do tablicy
         writer.quiz();
 
         countInRow++;
@@ -502,13 +529,8 @@ function exportToHtml() {
 window.onload = function() {
     updateZoom();
     applyLayout();
-    // Opcjonalnie: wygeneruj domyślny quiz przy starcie
-    if (document.getElementById('hanziInput').value) {
-        generateHanzi();
-    }
 };
 </script>
 
 </body>
 </html>
-
