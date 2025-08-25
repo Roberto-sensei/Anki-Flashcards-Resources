@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Ćwiczenie Hanzi</title>
+  <title>Ćwiczenie Hanzi z Eksportem</title>
   <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5.0/dist/hanzi-writer.min.js"></script>
   <style>
     body {
@@ -92,6 +92,12 @@
     }
     .button-group button.secondary:hover {
         background-color: #5a6268;
+    }
+    .button-group button.export {
+        background-color: #28a745;
+    }
+    .button-group button.export:hover {
+        background-color: #218838;
     }
 
     /* Style dla przełącznika */
@@ -184,7 +190,7 @@
     <div id="inputArea">
       <details open>
         <summary>Wprowadź znaki Hanzi</summary>
-        <textarea id="hanziInput" rows="3" placeholder="Wklej tutaj chińskie znaki..."></textarea>
+        <textarea id="hanziInput" rows="3" placeholder="Wklej tutaj chińskie znaki...">绝对不是</textarea>
       </details>
     </div>
 
@@ -222,6 +228,7 @@
             <button onclick="generateHanzi()">Generuj quizy</button>
             <button onclick="resetQuiz()" class="secondary">Reset</button>
             <button onclick="solveAll()" class="secondary">Rozwiąż</button>
+            <button onclick="exportToHtml()" class="export">Eksportuj do HTML</button>
         </div>
     </div>
 
@@ -364,9 +371,142 @@ function solveAll() {
   }
 }
 
+// NOWA FUNKCJA - Eksport do HTML
+function exportToHtml() {
+    // 1. Zbierz wszystkie aktualne ustawienia
+    const hanziChars = document.getElementById('hanziInput').value;
+    const boxSize = parseInt(document.getElementById('boxSizeInput').value, 10) || 250;
+    const gapSize = parseInt(document.getElementById('gapInput').value, 10) || 20;
+    const itemsPerRow = parseInt(document.getElementById('perRowInput').value, 10) || 5;
+    const gridThickness = parseInt(document.getElementById('gridThicknessInput').value, 10) || 1;
+    const isFlexibleLayout = document.getElementById('layoutToggle').checked;
+    const layoutClass = isFlexibleLayout ? '' : 'fixed-layout';
+
+    // 2. Stwórz szablon HTML jako string
+    const htmlTemplate = `
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Quiz Hanzi</title>
+  <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5.0/dist/hanzi-writer.min.js"><\/script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background-color: #f9f9f9; }
+    #hanziContainer { display: flex; flex-direction: column; }
+    #hanziContainer.fixed-layout { overflow-x: auto; padding-bottom: 15px; }
+    #hanziContainer.fixed-layout .hanzi-row { flex-wrap: nowrap; }
+    .hanzi-row { display: flex; flex-wrap: wrap; }
+    .hanzi-box { border: 2px solid #666; background-color: white; position: relative; }
+    .grid-lines { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 1; }
+  </style>
+</head>
+<body>
+  <div id="hanziContainer" class="${layoutClass}"></div>
+  <script>
+    // Funkcja do generowania siatki (skopiowana)
+    function generateGridSVG(size, thickness) {
+      const svgNS = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(svgNS, 'svg');
+      svg.setAttribute('class', 'grid-lines');
+      svg.setAttribute('width', size);
+      svg.setAttribute('height', size);
+      const step = size / 4;
+      const strokeWidth = Math.max(0, thickness);
+      for (let i = 1; i < 4; i++) {
+        const hLine = document.createElementNS(svgNS, 'line');
+        hLine.setAttribute('x1', '0'); hLine.setAttribute('y1', step * i);
+        hLine.setAttribute('x2', size); hLine.setAttribute('y2', step * i);
+        hLine.setAttribute('stroke', 'black'); hLine.setAttribute('stroke-width', strokeWidth);
+        svg.appendChild(hLine);
+        const vLine = document.createElementNS(svgNS, 'line');
+        vLine.setAttribute('x1', step * i); vLine.setAttribute('y1', '0');
+        vLine.setAttribute('x2', step * i); vLine.setAttribute('y2', size);
+        vLine.setAttribute('stroke', 'black'); vLine.setAttribute('stroke-width', strokeWidth);
+        svg.appendChild(vLine);
+      }
+      return svg;
+    }
+
+    // Funkcja generująca quiz, uruchamiana po załadowaniu strony
+    window.onload = function() {
+      // Ustawienia są "wypalone" bezpośrednio w kodzie
+      const config = {
+        chars: "${hanziChars.replace(/\n/g, '')}",
+        boxSize: ${boxSize},
+        gapSize: ${gapSize},
+        itemsPerRow: ${itemsPerRow},
+        gridThickness: ${gridThickness}
+      };
+
+      const container = document.getElementById('hanziContainer');
+      let rowDiv = null;
+      let countInRow = 0;
+      let charIndex = 0;
+
+      for (let i = 0; i < config.chars.length; i++) {
+        const char = config.chars[i];
+        if (char.trim() === '') continue;
+
+        if (countInRow % config.itemsPerRow === 0) {
+          rowDiv = document.createElement('div');
+          rowDiv.className = 'hanzi-row';
+          rowDiv.style.gap = \`\${config.gapSize}px\`;
+          rowDiv.style.marginBottom = \`\${config.gapSize}px\`;
+          container.appendChild(rowDiv);
+          countInRow = 0;
+        }
+
+        const box = document.createElement('div');
+        box.className = 'hanzi-box';
+        box.id = 'hanzi-' + charIndex;
+        box.style.width = \`\${config.boxSize}px\`;
+        box.style.height = \`\${config.boxSize}px\`;
+
+        const gridSVG = generateGridSVG(config.boxSize, config.gridThickness);
+        box.appendChild(gridSVG);
+        rowDiv.appendChild(box);
+
+        const writer = HanziWriter.create(box.id, char, {
+          width: config.boxSize,
+          height: config.boxSize,
+          showCharacter: false,
+          showOutline: false,
+          showHintAfterMisses: 1,
+          highlightOnComplete: false,
+          padding: 5
+        });
+        writer.quiz();
+
+        countInRow++;
+        charIndex++;
+      }
+    };
+  <\/script>
+</body>
+</html>
+    `;
+
+    // 3. Stwórz Blob i zainicjuj pobieranie
+    const blob = new Blob([htmlTemplate], { type: 'text/html' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'hanzi-quiz.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+}
+
+
 // Inicjalizacja przy starcie
-updateZoom();
-applyLayout();
+window.onload = function() {
+    updateZoom();
+    applyLayout();
+    // Opcjonalnie: wygeneruj domyślny quiz przy starcie
+    if (document.getElementById('hanziInput').value) {
+        generateHanzi();
+    }
+};
 </script>
 
 </body>
